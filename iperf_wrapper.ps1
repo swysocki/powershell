@@ -4,9 +4,6 @@ Test-Network script for sending multiple parallel data types
 The iPerf utility can send parallel streams of the same protocol
 (UDP/TCP) to the same socket.  This script allows running multiple
 iPerf processes to simulate concurrent network activity.
-
-This utility only works with iPerf3, which is not compatible with 
-iPerf2
 #>
 
 [CmdletBinding()]
@@ -47,7 +44,6 @@ $Global:jobs = @()
 # 32, 64, or 128 Kbps
 $voice_call = { param($quality, $quantity, $duration, $ip, $iperf_path) `
                 & $iperf_path `
-                -i 1 `
                 -p 5201 `
                 -c $ip `
                 -P $quantity `
@@ -58,7 +54,6 @@ $voice_call = { param($quality, $quantity, $duration, $ip, $iperf_path) `
 # Simulate a TCP file transfer
 $file_transfer = { param($duration, $ip, $iperf_path) `
                    & $iperf_path `
-                   -i 1 `
                    -p 5202 `
                    -c $ip `
                    -t $duration
@@ -70,7 +65,6 @@ $file_transfer = { param($duration, $ip, $iperf_path) `
 # stream here 
 $video_stream = { param($bitrate, $quantity, $duration, $ip, $iperf_path) `
                   & $iperf_path `
-                  -i 1 `
                   -p 5203 `
                   -c $ip `
                   -u -b $bitrate `
@@ -110,8 +104,8 @@ function run()
 {
     foreach ($result in $Global:jobs)
     {
-        $output = $result | Wait-Job | Receive-Job | Select-Object -Last 10
-        $result.Type
+        $output = $result | Wait-Job | Receive-Job  
+        "`n"+ $result.Type
         $output
     }
 }
