@@ -14,8 +14,31 @@ Param(
     [Parameter(Mandatory=$True)]
     [string]$ServerIP,
     [Parameter(Mandatory=$False)]
-    [string]$Path = "c:\windows\system32\iperf3.exe"
+    [string]$Path = "c:\windows\system32\iperf.exe",
+    [Parameter(Mandatory=$False)]
+    [string]$FilePath
 )
+
+
+if(! (Test-Path $Path))
+{
+    "ERROR: iPerf3.exe not found in $Path"
+    "Please specify location with -Path parameter"
+    Exit
+}
+
+if($FilePath -ne "")
+{
+    if(! (Test-Path $FilePath))
+    {
+        "ERROR: $FilePath does not exist"
+        Exit
+    }
+}
+
+# Global Jobs list - this should be a singleton but that is not easily
+# achieved in PowerShell
+$Global:jobs = @()
 
 # The following functions are written in script-block format because 
 # they are being used with Start-Job
@@ -24,22 +47,22 @@ Param(
 # 32, 64, or 128 Kbps
 $voice_call = { param($quality, $quantity, $duration, $ip, $iperf_path) `
                 & $iperf_path `
-                -i 0 `
+                -i 1 `
                 -p 5201 `
                 -c $ip `
-                -b $quality `
                 -P $quantity `
                 -t $duration `
-                -u }
+                -u -b $quality
+               }
 
-# Simulate a TCP file transfer. $file_size can be KB, MB, or GB
-$file_transfer = { param($file_size, $quantity, $ip, $iperf_path) `
+# Simulate a TCP file transfer
+$file_transfer = { param($duration, $ip, $iperf_path) `
                    & $iperf_path `
-                   -i 0 `
+                   -i 1 `
                    -p 5202 `
                    -c $ip `
-                   -b $file_size `
-                   -P $quantity }
+                   -t $duration
+                  }
 
 # Simulate a UDP video stream.  Exactly the same as voice_call, but normally
 # the bitrate is much higher (500 kbps - 6 Mbps)
@@ -47,20 +70,13 @@ $file_transfer = { param($file_size, $quantity, $ip, $iperf_path) `
 # stream here 
 $video_stream = { param($bitrate, $quantity, $duration, $ip, $iperf_path) `
                   & $iperf_path `
-                  -i 0 `
+                  -i 1 `
                   -p 5203 `
                   -c $ip `
-                  -b $bitrate `
+                  -u -b $bitrate `
                   -P $quantity `
-                  -t $duration `
-                  -u }
-
-if(! (Test-Path $Path))
-{
-    "ERROR: iPerf3.exe not found in $Path"
-    "Please specify location with -Path parameter"
-    Exit
-}
+                  -t $duration
+                  }
 
 function add_job($job_name, $job_type)
 {
@@ -72,24 +88,35 @@ function add_job($job_name, $job_type)
     else
     {
         $job_name | Add-Member -NotePropertyName "Type" -NotePropertyValue $job_type
-        $job_name
+        $Global:jobs += $job_name
     }
 }
 
-$jobs = @()
+# Normal Usage test
+# 1 64K phone call
+# 1 TCP file transfer
+# 1 3M video stream
+# 60 seconds
 
-$job1 = Start-Job -ScriptBlock $voice_call -ArgumentList "64K","25","30", $ServerIP, $Path
-$jobs += add_job $job1 "Voice Test"
+$job = Start-Job -ScriptBlock $voice_call -ArgumentList "64K","1","60", $ServerIP, $Path
+add_job $job "Voice Test"
 
-$job2 = Start-Job -ScriptBlock $file_transfer -ArgumentList "300M", "15", $ServerIP, $Path
-$jobs += add_job $job2 "File Test"
+$job = Start-Job -ScriptBlock $file_transfer -ArgumentList "60", $ServerIP, $Path
+add_job $job "File Test"
 
-$job3 = Start-Job -ScriptBlock $video_stream -ArgumentList "6M","25","30", $ServerIP, $Path
-$jobs += add_job $job3 "Video Test"
+$job = Start-Job -ScriptBlock $video_stream -ArgumentList "3M","1","60", $ServerIP, $Path
+add_job $job "Video Test"
 
-foreach ($result in $jobs)
+# the select-string pattern is a bit too naive
+# if you are not using parallel streams, the SUM row will not be present and output will 
+# not be shown.  an option would be to use json or select the last few rows? 
+foreach ($result in $Global:jobs)
 {
-    $output = $result | Wait-Job | Receive-Job | Select-String -Pattern SUM,ID,error
+    $output = $result | Wait-Job | Receive-Job | Select-Object -Last 2
     $result.Type
     $output
 }
+
+
+
+
