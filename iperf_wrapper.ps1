@@ -96,27 +96,27 @@ function add_job($job_name, $job_type)
 # 1 64K phone call
 # 1 TCP file transfer
 # 1 3M video stream
-# 60 seconds
-
-$job = Start-Job -ScriptBlock $voice_call -ArgumentList "64K","1","60", $ServerIP, $Path
-add_job $job "Voice Test"
-
-$job = Start-Job -ScriptBlock $file_transfer -ArgumentList "60", $ServerIP, $Path
-add_job $job "File Test"
-
-$job = Start-Job -ScriptBlock $video_stream -ArgumentList "3M","1","60", $ServerIP, $Path
-add_job $job "Video Test"
-
-# the select-string pattern is a bit too naive
-# if you are not using parallel streams, the SUM row will not be present and output will 
-# not be shown.  an option would be to use json or select the last few rows? 
-foreach ($result in $Global:jobs)
+function test_low($time="60")
 {
-    $output = $result | Wait-Job | Receive-Job | Select-Object -Last 2
-    $result.Type
-    $output
+    
+    add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","1", $time, $ServerIP, $Path) "Voice-Test"
+    
+    add_job $(Start-Job -ScriptBlock $file_transfer -ArgumentList $time, $ServerIP, $Path) "File Test"
+
+    add_job $(Start-Job -ScriptBlock $video_stream -ArgumentList "3M","1",$time, $ServerIP, $Path) "Video Test"
 }
 
+function run()
+{
+    foreach ($result in $Global:jobs)
+    {
+        $output = $result | Wait-Job | Receive-Job | Select-Object -Last 10
+        $result.Type
+        $output
+    }
+}
 
+test_low "10"
+run
 
 
