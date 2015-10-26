@@ -12,26 +12,18 @@ Param(
     [string]$ServerIP,
     [Parameter(Mandatory=$False)]
     [string]$Path = "c:\windows\system32\iperf.exe",
-    [Parameter(Mandatory=$False)]
-    [string]$FilePath
+    [Parameter(Mandatory=$True)]
+    [ValidateSet("Low","Medium")]
+    [string]$TestLoad
 )
-
 
 if(! (Test-Path $Path))
 {
-    "ERROR: iPerf3.exe not found in $Path"
+    "ERROR: iPerf binary not found in $Path"
     "Please specify location with -Path parameter"
     Exit
 }
 
-if($FilePath -ne "")
-{
-    if(! (Test-Path $FilePath))
-    {
-        "ERROR: $FilePath does not exist"
-        Exit
-    }
-}
 
 # Global Jobs list - this should be a singleton but that is not easily
 # achieved in PowerShell
@@ -92,29 +84,39 @@ function add_job($job_name, $job_type)
 # 1 3M video stream
 function test_low($time="60")
 {
-    
-    add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","1", $time, $ServerIP, $Path) "Voice-Test"
-    
+    "`nPerforming Low Load Test`n"
+    add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","1", $time, $ServerIP, $Path) "Voice-Test"   
     add_job $(Start-Job -ScriptBlock $file_transfer -ArgumentList $time, $ServerIP, $Path) "File Test"
-
     add_job $(Start-Job -ScriptBlock $video_stream -ArgumentList "3M","1",$time, $ServerIP, $Path) "Video Test"
 }
 
 # Medium Usage Test
-# 2 64K phone calls
+# 3 64K phone calls
 # 1 TCP File Transfer
 # 2 3M video streams
-function test_high($time=60)
+function test_medium($time=60)
 {
+    "`nPerforming High Load Test`n"
     add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","3", $time, $ServerIP, $Path) "Voice-Test"
-    
     add_job $(Start-Job -ScriptBlock $file_transfer -ArgumentList $time, $ServerIP, $Path) "File Test"
-
     add_job $(Start-Job -ScriptBlock $video_stream -ArgumentList "3M","2",$time, $ServerIP, $Path) "Video Test"
 }
 
+# Another ugly global to set the test load type
+$Global:TEST_LOAD
+if ($TestLoad -eq "Low")
+{
+    $Global:TEST_LOAD = test_low
+}
+elseif ($TestLoad -eq "Medium")
+{
+    $Global:TEST_LOAD = test_medium
+}
+
+
 function run()
 {
+    $Global:TEST_LOAD
     foreach ($result in $Global:jobs)
     {
         $output = $result | Wait-Job | Receive-Job  
@@ -123,8 +125,6 @@ function run()
     }
 }
 
-#test_low "10"
-test_high "10"
 run
 
 
