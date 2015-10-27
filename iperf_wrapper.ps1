@@ -11,10 +11,12 @@ Param(
     [Parameter(Mandatory=$True)]
     [string]$ServerIP,
     [Parameter(Mandatory=$False)]
-    [string]$Path = "c:\windows\system32\iperf.exe",
+    [string]$Path="c:\windows\system32\iperf.exe",
     [Parameter(Mandatory=$True)]
     [ValidateSet("Low","Medium")]
-    [string]$TestLoad
+    [string]$Load,
+    [Parameter(Mandatory=$False)]
+    [string]$Time="60"
 )
 
 if(! (Test-Path $Path))
@@ -94,29 +96,26 @@ function test_low($time="60")
 # 3 64K phone calls
 # 1 TCP File Transfer
 # 2 3M video streams
-function test_medium($time=60)
+function test_medium($time="60")
 {
-    "`nPerforming High Load Test`n"
+    "`nPerforming Medium Load Test`n"
     add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","3", $time, $ServerIP, $Path) "Voice-Test"
     add_job $(Start-Job -ScriptBlock $file_transfer -ArgumentList $time, $ServerIP, $Path) "File Test"
     add_job $(Start-Job -ScriptBlock $video_stream -ArgumentList "3M","2",$time, $ServerIP, $Path) "Video Test"
 }
 
-# Another ugly global to set the test load type
-$Global:TEST_LOAD
-if ($TestLoad -eq "Low")
+function run($test_load, $test_time)
 {
-    $Global:TEST_LOAD = test_low
-}
-elseif ($TestLoad -eq "Medium")
-{
-    $Global:TEST_LOAD = test_medium
-}
-
-
-function run()
-{
-    $Global:TEST_LOAD
+    if ($test_load -eq "Low")
+        {
+            test_low $test_time
+        }
+        elseif ($test_load -eq "Medium")
+        {
+            test_medium $test_time
+        }
+        else { Write-Error "Invalid Load"}
+    
     foreach ($result in $Global:jobs)
     {
         $output = $result | Wait-Job | Receive-Job  
@@ -125,6 +124,6 @@ function run()
     }
 }
 
-run
+run $Load $Time
 
 
