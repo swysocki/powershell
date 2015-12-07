@@ -94,7 +94,7 @@ function test_low($time="60")
 
 # Medium Usage Test
 # 3 64K phone calls
-# 1 TCP File Transfer
+# 1 TCP file transfer
 # 2 3M video streams
 function test_medium($time="60")
 {
@@ -102,6 +102,18 @@ function test_medium($time="60")
     add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","3", $time, $ServerIP, $Path) "Voice-Test"
     add_job $(Start-Job -ScriptBlock $file_transfer -ArgumentList $time, $ServerIP, $Path) "File Test"
     add_job $(Start-Job -ScriptBlock $video_stream -ArgumentList "3M","2",$time, $ServerIP, $Path) "Video Test"
+}
+
+# High Usage Test
+# 6 64K phone calls
+# 1 TCP file transfer
+# 4 3M video streams
+function test_medium($time="60")
+{
+    "`nPerforming High Load Test`n"
+    add_job $(Start-Job -ScriptBlock $voice_call -ArgumentList "64K","6", $time, $ServerIP, $Path) "Voice-Test"
+    add_job $(Start-Job -ScriptBlock $file_transfer -ArgumentList $time, $ServerIP, $Path) "File Test"
+    add_job $(Start-Job -ScriptBlock $video_stream -ArgumentList "3M","4",$time, $ServerIP, $Path) "Video Test"
 }
 
 function run($test_load, $test_time)
