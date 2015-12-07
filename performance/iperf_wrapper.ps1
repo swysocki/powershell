@@ -137,5 +137,3 @@ function run($test_load, $test_time)
 }
 
 run $Load $Time
-
-

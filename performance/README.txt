@@ -3,8 +3,9 @@
 To run Powershell scripts, you must enable execution of 3rd party scripts in your environment.
 
 Open a Powershell prompt as Administrator by right clicking on the Powershell icon and selecting "Run as Administrator".  
-Once Powershell has opened run > Set-ExecutionPolicy RemoteSigned
-Select Y for yes when prompted
+Once Powershell has opened run 
+> Set-ExecutionPolicy RemoteSigned
+Select "Y" for yes when prompted
 Close Powershell
 
 
